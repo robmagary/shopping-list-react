@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import './App.css'
 import {
   QueryClient,
@@ -52,11 +52,18 @@ interface SearchProps {
 
 function Search({ handleSetFoodItem }:SearchProps) {
   const [foodQuery, setFoodQuery] = useState('')
+  const [debouncedFoodQuery, setDebouncedFoodQuery] = React.useState('')
+  useEffect(() => {
+    const delayInputTimeoutId = setTimeout(() => {
+      setDebouncedFoodQuery(foodQuery)
+    }, 500)
+    return () => clearTimeout(delayInputTimeoutId)
+  }, [foodQuery])
   return (
     <div className='flex flex-col dropdown focus-within:dropdown-open'>
       <SearchInput foodQuery={foodQuery} setFoodQuery={setFoodQuery} />
       <QueryClientProvider client={queryClient}>
-        <SearchResults foodQuery={foodQuery} handleSetFoodItem={handleSetFoodItem} />
+        <SearchResults foodQuery={debouncedFoodQuery} handleSetFoodItem={handleSetFoodItem} />
       </QueryClientProvider>
     </div>
   )
