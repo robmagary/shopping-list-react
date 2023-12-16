@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import './App.css'
 import {
   QueryClient,
@@ -17,32 +17,35 @@ interface FoodItem {
 
 function App() {
   const [listItems, setListItems] = useState<FoodItem[]>([])
-  const handleSetFoodItem = (foodLabel:string) => {
+  const handleSetFoodItem = useCallback (
+    (foodLabel:string) => {
     setListItems([
       ...listItems,
       { label: foodLabel, isSelected: false }
     ])
-  }
-  const handleToggleItem = (itemIndex:number) => {
+  }, [listItems])
+  const handleToggleItem = useCallback (
+    (itemIndex:number) => {
     setListItems(
       produce(listItems, (draft) =>{
         draft[itemIndex].isSelected = !draft[itemIndex].isSelected
       })
     )
-  }
-  const handleDeleteItem = (itemIndex:number) => {
+  }, [listItems])
+  const handleDeleteItem = useCallback(
+  (itemIndex:number) => {
     setListItems(
       produce(listItems, (draft) =>{
         draft.splice(itemIndex, 1)
       })
     )
-  }
+  }, [listItems])
   return (
-      <div className='flex flex-col justify-items-center mx-auto w-96'>
-        <h1 className='text-3xl font-bold text-center my-6' >My Shopping List</h1>
-        <Search handleSetFoodItem={handleSetFoodItem}/>
-        <ShoppingList handleDeleteItem={handleDeleteItem} handleToggleItem={handleToggleItem} listItems={listItems}/>
-      </div>
+    <div className='flex flex-col justify-items-center mx-auto w-96'>
+      <h1 className='text-3xl font-bold text-center my-6' >My Shopping List</h1>
+      <Search handleSetFoodItem={handleSetFoodItem}/>
+      <ShoppingList handleDeleteItem={handleDeleteItem} handleToggleItem={handleToggleItem} listItems={listItems}/>
+    </div>
   )
 }
 
@@ -106,22 +109,22 @@ function SearchResults({ foodQuery, handleSetFoodItem }:SearchResultProps) {
         { status == 'error' ? ( <span>`Error: ${error.message}`</span> )
           : status == 'pending' ? ( <span>{isFetching ? `Loading...` : ``}</span> )
           : <ul className='dropdown-content z-[1] shadow bg-base-100 w-full' role='menu' aria-orientation='vertical' aria-labelledby='menu-button' tabIndex={-1}>
-                  { data.map((searchResult: string, index :number) => {
-                      return (
-                        <li
-                          className='text-gray-700 text-sm'
-                          role='menuitem'
-                          tabIndex={-1}
-                          key={index}
-                          onClick={() => handleSetFoodItem(searchResult)}
-                        >
-                          <button className='btn btn-ghost rounded-none w-full'>
-                          {searchResult}
-                          </button>
-                        </li>
-                      )
-                    })
-                  }
+              { data.map((searchResult: string, index :number) => {
+                  return (
+                    <li
+                      className='text-gray-700 text-sm'
+                      role='menuitem'
+                      tabIndex={-1}
+                      key={index}
+                      onClick={() => handleSetFoodItem(searchResult)}
+                    >
+                      <button className='btn btn-ghost rounded-none w-full'>
+                      {searchResult}
+                      </button>
+                    </li>
+                  )
+                })
+              }
             </ul>
         }
       </div>
