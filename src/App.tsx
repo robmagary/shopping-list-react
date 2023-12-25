@@ -109,13 +109,13 @@ function SearchResults({ foodQuery, handleSetFoodItem }:SearchResultProps) {
         { status == 'error' ? ( <span>`Error: ${error.message}`</span> )
           : status == 'pending' ? ( <span>{isFetching ? `Loading...` : ``}</span> )
           : <ul className='dropdown-content z-[1] shadow bg-base-100 w-full' role='menu' aria-orientation='vertical' aria-labelledby='menu-button' tabIndex={-1}>
-              { data.map((searchResult: string, index :number) => {
+              { data.map((searchResult: string) => {
                   return (
                     <li
                       className='text-gray-700 text-sm'
                       role='menuitem'
                       tabIndex={-1}
-                      key={index}
+                      key={searchResult}
                       onClick={() => handleSetFoodItem(searchResult)}
                     >
                       <button className='btn btn-ghost rounded-none w-full'>
