@@ -10,13 +10,13 @@ import { produce } from 'immer'
 
 const queryClient = new QueryClient()
 
-interface FoodItem {
+interface ListItem {
   label: string
   isSelected: boolean
 }
 
 interface ShoppingListState {
-  items: FoodItem[]
+  items: ListItem[]
   searchInput: string
 }
 
@@ -25,7 +25,7 @@ type ShoppingListAction =
       itemIndex:number;
     }
   | { type: 'SetItem';
-      foodLabel:string;
+      itemLabel:string;
     }
   | { type: 'SetSearchInput';
       searchInput:string;
@@ -53,7 +53,7 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
       const updatedItems =
         [
           ...state.items,
-          { label: action.foodLabel, isSelected: false }
+          { label: action.itemLabel, isSelected: false }
         ]
       const updatedState =
         produce(state, draft => {
@@ -93,9 +93,9 @@ function App() {
   (itemIndex:number) => {
     dispatch({ type: 'DeletedItem', itemIndex: itemIndex})
   }, [state.items])
-  const handleSetFoodItem = React.useCallback (
-    (foodLabel:string) => {
-    dispatch({ type: 'SetItem', foodLabel: foodLabel})
+  const handleSetListItem = React.useCallback (
+    (itemLabel:string) => {
+    dispatch({ type: 'SetItem', itemLabel: itemLabel})
     if (searchInputRef.current) {
       searchInputRef.current.focus()
     }
@@ -112,9 +112,9 @@ function App() {
     <div className='flex flex-col justify-items-center mx-auto w-96'>
       <h1 className='text-3xl font-bold text-center my-6' >My Shopping List</h1>
       <div className='flex flex-col dropdown focus-within:dropdown-open'>
-        <SearchInput foodQuery={state.searchInput} ref={searchInputRef} setSearchInput={(input:string) => handleSetSearchInput(input)} />
+        <SearchInput itemQuery={state.searchInput} ref={searchInputRef} setSearchInput={(input:string) => handleSetSearchInput(input)} />
         <QueryClientProvider client={queryClient}>
-          <SearchResults foodQuery={state.searchInput} handleSetFoodItem={handleSetFoodItem} />
+          <SearchResults itemQuery={state.searchInput} handleSetListItem={handleSetListItem} />
         </QueryClientProvider>
       </div>
       <ShoppingList handleDeleteItem={handleDeleteItem} handleToggleItem={handleToggleItem} listItems={state.items}/>
@@ -124,46 +124,45 @@ function App() {
 
 
 interface SearchInputProps {
-  foodQuery: string
+  itemQuery: string
   setSearchInput: (searchInput: string) => void
 }
 
-const SearchInput = React.forwardRef(({ foodQuery, setSearchInput }:SearchInputProps,  ref:React.ForwardedRef<HTMLInputElement>) => { 
+const SearchInput = React.forwardRef(({ itemQuery, setSearchInput }:SearchInputProps,  ref:React.ForwardedRef<HTMLInputElement>) => { 
   return(
     <input
       className='w-full input input-bordered'
       ref={ref}
       type='text'
-      value={foodQuery}
+      value={itemQuery}
       name='searchInput'
       onChange={
         (event:React.ChangeEvent<HTMLInputElement>)=> {
-          const foodQueryInput = event.target.value
-          setSearchInput(foodQueryInput)
+          setSearchInput(event.target.value)
         }
       }
     />
   )
 })
 
-function useFoodQuery(foodQuery:string) {
+function useFoodQuery(itemQuery:string) {
   return useQuery({
-    queryKey: [foodQuery],
+    queryKey: [itemQuery],
     queryFn: async () => {
-      const { data } = await axios.get(`https://api.frontendeval.com/fake/food/${foodQuery}`)
+      const { data } = await axios.get(`https://api.frontendeval.com/fake/food/${itemQuery}`)
       return data
     },
-    enabled: foodQuery.length > 1
+    enabled: itemQuery.length > 1
   })
 }
 
 interface SearchResultProps {
-  foodQuery: string
-  handleSetFoodItem:(foodLabel: string) => void
+  itemQuery: string
+  handleSetListItem:(itemLabel: string) => void
 }
 
-function SearchResults({ foodQuery, handleSetFoodItem }:SearchResultProps) {
-    const { status, data, error, isFetching } = useFoodQuery(foodQuery)
+function SearchResults({ itemQuery, handleSetListItem }:SearchResultProps) {
+    const { status, data, error, isFetching } = useFoodQuery(itemQuery)
     return (
       <div className='mx-2 relative'>
         { status == 'error' ? ( <span>`Error: ${error.message}`</span> )
@@ -177,7 +176,7 @@ function SearchResults({ foodQuery, handleSetFoodItem }:SearchResultProps) {
                       tabIndex={-1}
                       key={searchResult}
                     >
-                      <button onClick={() => handleSetFoodItem(searchResult)} className='btn btn-ghost rounded-none w-full'>
+                      <button onClick={() => handleSetListItem(searchResult)} className='btn btn-ghost rounded-none w-full'>
                       {searchResult}
                       </button>
                     </li>
@@ -193,7 +192,7 @@ function SearchResults({ foodQuery, handleSetFoodItem }:SearchResultProps) {
 interface ShoppongListProps {
   handleDeleteItem: (itemIndex: number) => void
   handleToggleItem: (itemIndex: number) => void
-  listItems: FoodItem[]
+  listItems: ListItem[]
 }
 
 function ShoppingList({handleDeleteItem, handleToggleItem, listItems}:ShoppongListProps) {
