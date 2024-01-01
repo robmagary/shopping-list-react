@@ -17,6 +17,7 @@ interface ListItem {
 
 interface ShoppingListState {
   items: ListItem[]
+  resultsAreVisible: boolean
   searchInput: string
 }
 
@@ -41,52 +42,45 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
         produce(state.items, (draft) =>{
           draft.splice(action.itemIndex, 1)
         })
-      const updatedState =
-        produce(state, draft => {
-          draft.items = updatedItems
-        })
       
-        return updatedState
+      return { ...state, items: updatedItems }
     }
     
     case 'SetItem': {
-      const updatedItems =
-        [
-          ...state.items,
-          { label: action.itemLabel, isSelected: false }
-        ]
-      const updatedState =
-        produce(state, draft => {
-          draft.items = updatedItems
-        })
-      
-        return updatedState
+      return { ...state,
+          items:
+            [
+              { label: action.itemLabel, isSelected: false },
+              ...state.items
+            ],
+          resultsAreVisible: false 
+        }
     }
+    
     case 'SetSearchInput': {
-      const updatedState =
-        produce(state, draft => {
-          draft.searchInput = action.searchInput
-        })
-      
-        return updatedState
+      return { ...state, resultsAreVisible: true, searchInput: action.searchInput }
     }
+
     case 'ToggledItem': {
-      const updatedItems =
-        produce(state.items, (draft) =>{
-          draft[action.itemIndex].isSelected = !draft[action.itemIndex].isSelected
-        })
       const updatedState =
         produce(state, draft => {
-          draft.items = updatedItems
+          draft.items =
+            produce(state.items, (draft_) =>{
+              draft_[action.itemIndex].isSelected = !draft_[action.itemIndex].isSelected
+            })
         })
       
-        return updatedState
+      return updatedState
     }
   }
 }
 
 function App() {
-  const intialState = { items: [], searchInput: '' }
+  const intialState =
+    { items: [],
+      searchInput: '',
+      resultsAreVisible: false
+    }
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const [state, dispatch] = React.useReducer(shoppingListReducer, intialState)
   const handleDeleteItem = React.useCallback(
@@ -103,7 +97,7 @@ function App() {
   const handleSetSearchInput = React.useCallback (
     (searchInput:string) => {
       dispatch({ type: 'SetSearchInput', searchInput: searchInput})
-    }, [state.searchInput])
+    }, [state.searchInput, state.resultsAreVisible])
   const handleToggleItem = React.useCallback (
     (itemIndex:number) => {
     dispatch({ type: 'ToggledItem', itemIndex: itemIndex})
@@ -114,7 +108,7 @@ function App() {
       <div className='flex flex-col dropdown focus-within:dropdown-open'>
         <SearchInput itemQuery={state.searchInput} ref={searchInputRef} setSearchInput={(input:string) => handleSetSearchInput(input)} />
         <QueryClientProvider client={queryClient}>
-          <SearchResults itemQuery={state.searchInput} handleSetListItem={handleSetListItem} />
+          <SearchResults itemQuery={state.searchInput} handleSetListItem={handleSetListItem} visible={state.resultsAreVisible} />
         </QueryClientProvider>
       </div>
       <ShoppingList handleDeleteItem={handleDeleteItem} handleToggleItem={handleToggleItem} listItems={state.items}/>
@@ -159,12 +153,13 @@ function useFoodQuery(itemQuery:string) {
 interface SearchResultProps {
   itemQuery: string
   handleSetListItem:(itemLabel: string) => void
+  visible: boolean
 }
 
-function SearchResults({ itemQuery, handleSetListItem }:SearchResultProps) {
+function SearchResults({ itemQuery, handleSetListItem, visible }:SearchResultProps) {
     const { status, data, error, isFetching } = useFoodQuery(itemQuery)
     return (
-      <div className='mx-2 relative'>
+      <div className={`mx-2 relative${visible? '' : ' hidden'}`}>
         { status == 'error' ? ( <span>`Error: ${error.message}`</span> )
           : status == 'pending' ? ( <span>{isFetching ? `Loading...` : ``}</span> )
           : <ul className='dropdown-content z-[1] shadow bg-base-100 w-full' role='menu' aria-orientation='vertical' aria-labelledby='menu-button' tabIndex={-1}>
