@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React from 'react'
 import './App.css'
 import {
   QueryClient,
@@ -15,76 +15,136 @@ interface FoodItem {
   isSelected: boolean
 }
 
+interface ShoppingListState {
+  items: FoodItem[]
+  searchInput: string
+}
+
+type ShoppingListAction =
+  | { type: 'DeletedItem';
+      itemIndex:number;
+    }
+  | { type: 'SetItem';
+      foodLabel:string;
+    }
+  | { type: 'SetSearchInput';
+      searchInput:string;
+    }
+  | { type: 'ToggledItem';
+      itemIndex:number;
+    }
+
+function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction):ShoppingListState {
+  switch (action.type) {
+    case 'DeletedItem': {
+      const updatedItems =
+        produce(state.items, (draft) =>{
+          draft.splice(action.itemIndex, 1)
+        })
+      const updatedState =
+        produce(state, draft => {
+          draft.items = updatedItems
+        })
+      
+        return updatedState
+    }
+    
+    case 'SetItem': {
+      const updatedItems =
+        [
+          ...state.items,
+          { label: action.foodLabel, isSelected: false }
+        ]
+      const updatedState =
+        produce(state, draft => {
+          draft.items = updatedItems
+        })
+      
+        return updatedState
+    }
+    case 'SetSearchInput': {
+      const updatedState =
+        produce(state, draft => {
+          draft.searchInput = action.searchInput
+        })
+      
+        return updatedState
+    }
+    case 'ToggledItem': {
+      const updatedItems =
+        produce(state.items, (draft) =>{
+          draft[action.itemIndex].isSelected = !draft[action.itemIndex].isSelected
+        })
+      const updatedState =
+        produce(state, draft => {
+          draft.items = updatedItems
+        })
+      
+        return updatedState
+    }
+  }
+}
+
 function App() {
-  const [listItems, setListItems] = useState<FoodItem[]>([])
-  const handleSetFoodItem = useCallback (
-    (foodLabel:string) => {
-    setListItems([
-      ...listItems,
-      { label: foodLabel, isSelected: false }
-    ])
-  }, [listItems])
-  const handleToggleItem = useCallback (
-    (itemIndex:number) => {
-    setListItems(
-      produce(listItems, (draft) =>{
-        draft[itemIndex].isSelected = !draft[itemIndex].isSelected
-      })
-    )
-  }, [listItems])
-  const handleDeleteItem = useCallback(
+  const intialState = { items: [], searchInput: '' }
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
+  const [state, dispatch] = React.useReducer(shoppingListReducer, intialState)
+  const handleDeleteItem = React.useCallback(
   (itemIndex:number) => {
-    setListItems(
-      produce(listItems, (draft) =>{
-        draft.splice(itemIndex, 1)
-      })
-    )
-  }, [listItems])
+    dispatch({ type: 'DeletedItem', itemIndex: itemIndex})
+  }, [state.items])
+  const handleSetFoodItem = React.useCallback (
+    (foodLabel:string) => {
+    dispatch({ type: 'SetItem', foodLabel: foodLabel})
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [state.items])
+  const handleSetSearchInput = React.useCallback (
+    (searchInput:string) => {
+      dispatch({ type: 'SetSearchInput', searchInput: searchInput})
+    }, [state.searchInput])
+  const handleToggleItem = React.useCallback (
+    (itemIndex:number) => {
+    dispatch({ type: 'ToggledItem', itemIndex: itemIndex})
+  }, [state.items])
   return (
     <div className='flex flex-col justify-items-center mx-auto w-96'>
       <h1 className='text-3xl font-bold text-center my-6' >My Shopping List</h1>
-      <Search handleSetFoodItem={handleSetFoodItem}/>
-      <ShoppingList handleDeleteItem={handleDeleteItem} handleToggleItem={handleToggleItem} listItems={listItems}/>
+      <div className='flex flex-col dropdown focus-within:dropdown-open'>
+        <SearchInput foodQuery={state.searchInput} ref={searchInputRef} setSearchInput={(input:string) => handleSetSearchInput(input)} />
+        <QueryClientProvider client={queryClient}>
+          <SearchResults foodQuery={state.searchInput} handleSetFoodItem={handleSetFoodItem} />
+        </QueryClientProvider>
+      </div>
+      <ShoppingList handleDeleteItem={handleDeleteItem} handleToggleItem={handleToggleItem} listItems={state.items}/>
     </div>
   )
 }
 
-interface SearchProps {
-  handleSetFoodItem:(foodLabel: string) => void
-}
-
-function Search({ handleSetFoodItem }:SearchProps) {
-  const [foodQuery, setFoodQuery] = useState('')
-  return (
-    <div className='flex flex-col dropdown focus-within:dropdown-open'>
-      <SearchInput foodQuery={foodQuery} setFoodQuery={setFoodQuery} />
-      <QueryClientProvider client={queryClient}>
-        <SearchResults foodQuery={foodQuery} handleSetFoodItem={handleSetFoodItem} />
-      </QueryClientProvider>
-    </div>
-  )
-}
 
 interface SearchInputProps {
   foodQuery: string
-  setFoodQuery: React.Dispatch<React.SetStateAction<string>>
+  setSearchInput: (searchInput: string) => void
 }
 
-function SearchInput({ foodQuery, setFoodQuery }:SearchInputProps) {
+const SearchInput = React.forwardRef(({ foodQuery, setSearchInput }:SearchInputProps,  ref:React.ForwardedRef<HTMLInputElement>) => { 
   return(
     <input
       className='w-full input input-bordered'
+      ref={ref}
       type='text'
       value={foodQuery}
+      name='searchInput'
       onChange={
         (event:React.ChangeEvent<HTMLInputElement>)=> {
           const foodQueryInput = event.target.value
-          setFoodQuery(foodQueryInput)
+          setSearchInput(foodQueryInput)
         }
       }
     />
   )
-}
+})
 
 function useFoodQuery(foodQuery:string) {
   return useQuery({
@@ -116,9 +176,8 @@ function SearchResults({ foodQuery, handleSetFoodItem }:SearchResultProps) {
                       role='menuitem'
                       tabIndex={-1}
                       key={searchResult}
-                      onClick={() => handleSetFoodItem(searchResult)}
                     >
-                      <button className='btn btn-ghost rounded-none w-full'>
+                      <button onClick={() => handleSetFoodItem(searchResult)} className='btn btn-ghost rounded-none w-full'>
                       {searchResult}
                       </button>
                     </li>
