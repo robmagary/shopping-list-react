@@ -7,12 +7,14 @@ import {
 } from '@tanstack/react-query'
 import axios from 'axios'
 import { produce } from 'immer'
+import * as R from 'ramda'
 
 const queryClient = new QueryClient()
 
 interface ListItem {
   label: string
   isSelected: boolean
+  quantity: number
 }
 
 interface ShoppingListState {
@@ -22,21 +24,43 @@ interface ShoppingListState {
 }
 
 type ShoppingListAction =
+  | { type: 'ChangeItemQuantity';
+      change: number
+      itemLabel: string;
+    }
   | { type: 'DeletedItem';
-      itemIndex:number;
+      itemIndex: number;
     }
   | { type: 'SetItem';
-      itemLabel:string;
+      itemLabel: string;
     }
   | { type: 'SetSearchInput';
-      searchInput:string;
+      searchInput: string;
     }
   | { type: 'ToggledItem';
-      itemIndex:number;
+      itemIndex: number;
     }
 
 function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction):ShoppingListState {
   switch (action.type) {
+    case 'ChangeItemQuantity': {
+      const updatedState =
+        produce(state, draft => {
+          draft.items =
+            produce(state.items, (draft_) =>{
+              draft_.map((item) =>{
+                if (item.label === action.itemLabel) {
+                  item.quantity = item.quantity + action.change
+                } else {
+                  item
+                }
+              })
+            })
+        })
+      
+      return updatedState
+    }
+
     case 'DeletedItem': {
       const updatedItems =
         produce(state.items, (draft) =>{
@@ -50,7 +74,7 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
       return { ...state,
           items:
             [
-              { label: action.itemLabel, isSelected: false },
+              { label: action.itemLabel, isSelected: false, quantity: 1 },
               ...state.items
             ],
           resultsAreVisible: false 
@@ -89,9 +113,14 @@ function App() {
   }, [state.items])
   const handleSetListItem = React.useCallback (
     (itemLabel:string) => {
-    dispatch({ type: 'SetItem', itemLabel: itemLabel})
-    if (searchInputRef.current) {
-      searchInputRef.current.focus()
+      const itemExistsInList = R.any((item_:ListItem) => item_.label == itemLabel)(state.items)
+    if (itemExistsInList) {
+      dispatch({ type: 'ChangeItemQuantity', change: +1, itemLabel: itemLabel })
+    } else {
+      dispatch({ type: 'SetItem', itemLabel: itemLabel})
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
     }
   }, [state.items])
   const handleSetSearchInput = React.useCallback (
@@ -206,7 +235,7 @@ function ShoppingList({handleDeleteItem, handleToggleItem, listItems}:ShoppongLi
                       onChange={() => handleToggleItem(itemIndex)}/>
                     <span
                       className={`label-text ml-4 ${listItem.isSelected ? 'line-through' : ''}`}>
-                      {listItem.label}
+                      {listItem.quantity} - {listItem.label}
                     </span> 
                   </label>
                 </div>
