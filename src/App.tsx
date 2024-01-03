@@ -10,6 +10,7 @@ import { produce } from 'immer'
 import * as R from 'ramda'
 
 const queryClient = new QueryClient()
+const LOCAL_STORAGE_KEY = 'react-shopping-list'
 
 interface ListItem {
   label: string
@@ -58,20 +59,28 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
             })
         })
       
+      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
+      
       return updatedState
     }
 
     case 'DeletedItem': {
-      const updatedItems =
-        produce(state.items, (draft) =>{
-          draft.splice(action.itemIndex, 1)
-        })
+      const updatedState =
+        { ...state,
+          items:
+            produce(state.items, (draft) =>{
+                draft.splice(action.itemIndex, 1)
+              })
+        }
       
-      return { ...state, items: updatedItems }
+      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
+      
+      return updatedState
     }
     
     case 'SetItem': {
-      return { ...state,
+      const updatedState =
+        { ...state,
           items:
             [
               { label: action.itemLabel, isSelected: false, quantity: 1 },
@@ -79,10 +88,21 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
             ],
           resultsAreVisible: false 
         }
+      
+      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
+      
+      return updatedState
     }
     
     case 'SetSearchInput': {
-      return { ...state, resultsAreVisible: true, searchInput: action.searchInput }
+      const updatedState =
+        { ...state
+          , resultsAreVisible: true
+          , searchInput: action.searchInput
+        }
+      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
+      
+      return updatedState
     }
 
     case 'ToggledItem': {
@@ -93,6 +113,8 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
               draft_[action.itemIndex].isSelected = !draft_[action.itemIndex].isSelected
             })
         })
+       
+      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
       
       return updatedState
     }
@@ -100,37 +122,50 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
 }
 
 function App() {
-  const intialState =
+  const emptyState:ShoppingListState =
     { items: [],
       searchInput: '',
       resultsAreVisible: false
     }
+
+  const savedStateString: string | null =
+    localStorage.getItem(LOCAL_STORAGE_KEY)
+  
+  const intialState:ShoppingListState = savedStateString == null
+    ? emptyState
+    : JSON.parse(savedStateString) // Adding Zod in the next iteration to enforce type safety from local storage
+  
   const searchInputRef = React.useRef<HTMLInputElement>(null)
+  
   const [state, dispatch] = React.useReducer(shoppingListReducer, intialState)
+  
   const handleDeleteItem = React.useCallback(
-  (itemIndex:number) => {
-    dispatch({ type: 'DeletedItem', itemIndex: itemIndex})
-  }, [state.items])
+    (itemIndex:number) => {
+      dispatch({ type: 'DeletedItem', itemIndex: itemIndex})
+    }, [state.items])
   const handleSetListItem = React.useCallback (
     (itemLabel:string) => {
       const itemExistsInList = R.any((item_:ListItem) => item_.label == itemLabel)(state.items)
-    if (itemExistsInList) {
-      dispatch({ type: 'ChangeItemQuantity', change: +1, itemLabel: itemLabel })
-    } else {
-      dispatch({ type: 'SetItem', itemLabel: itemLabel})
-      if (searchInputRef.current) {
-        searchInputRef.current.focus()
+      if (itemExistsInList) {
+        dispatch({ type: 'ChangeItemQuantity', change: +1, itemLabel: itemLabel })
+      } else {
+        dispatch({ type: 'SetItem', itemLabel: itemLabel})
+        if (searchInputRef.current) {
+          searchInputRef.current.focus()
+        }
       }
-    }
-  }, [state.items])
+    }, [state.items])
+  
   const handleSetSearchInput = React.useCallback (
     (searchInput:string) => {
       dispatch({ type: 'SetSearchInput', searchInput: searchInput})
     }, [state.searchInput, state.resultsAreVisible])
+  
   const handleToggleItem = React.useCallback (
     (itemIndex:number) => {
     dispatch({ type: 'ToggledItem', itemIndex: itemIndex})
   }, [state.items])
+  
   return (
     <div className='flex flex-col justify-items-center mx-auto w-96'>
       <h1 className='text-3xl font-bold text-center my-6' >My Shopping List</h1>
@@ -232,6 +267,7 @@ function ShoppingList({handleDeleteItem, handleToggleItem, listItems}:ShoppongLi
                       type='checkbox'
                       checked={listItem.isSelected}
                       className='checkbox'
+                      name='item-checkbox'
                       onChange={() => handleToggleItem(itemIndex)}/>
                     <span
                       className={`label-text ml-4 ${listItem.isSelected ? 'line-through' : ''}`}>
