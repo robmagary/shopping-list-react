@@ -59,28 +59,20 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
             })
         })
       
-      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
-      
       return updatedState
     }
 
     case 'DeletedItem': {
-      const updatedState =
-        { ...state,
-          items:
-            produce(state.items, (draft) =>{
-                draft.splice(action.itemIndex, 1)
-              })
-        }
-      
-      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
-      
-      return updatedState
+      const updatedItems =
+        produce(state.items, (draft) =>{
+          draft.splice(action.itemIndex, 1)
+        })
+
+      return { ...state, items: updatedItems }
     }
     
     case 'SetItem': {
-      const updatedState =
-        { ...state,
+      return { ...state,
           items:
             [
               { label: action.itemLabel, isSelected: false, quantity: 1 },
@@ -88,21 +80,10 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
             ],
           resultsAreVisible: false 
         }
-      
-      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
-      
-      return updatedState
     }
     
     case 'SetSearchInput': {
-      const updatedState =
-        { ...state
-          , resultsAreVisible: true
-          , searchInput: action.searchInput
-        }
-      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
-      
-      return updatedState
+      return { ...state, resultsAreVisible: true, searchInput: action.searchInput }
     }
 
     case 'ToggledItem': {
@@ -114,8 +95,6 @@ function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction)
             })
         })
        
-      localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(updatedState) )
-      
       return updatedState
     }
   }
@@ -143,6 +122,7 @@ function App() {
     (itemIndex:number) => {
       dispatch({ type: 'DeletedItem', itemIndex: itemIndex})
     }, [state.items])
+  
   const handleSetListItem = React.useCallback (
     (itemLabel:string) => {
       const itemExistsInList = R.any((item_:ListItem) => item_.label == itemLabel)(state.items)
@@ -155,16 +135,20 @@ function App() {
         }
       }
     }, [state.items])
-  
+    
   const handleSetSearchInput = React.useCallback (
     (searchInput:string) => {
       dispatch({ type: 'SetSearchInput', searchInput: searchInput})
     }, [state.searchInput, state.resultsAreVisible])
-  
+    
   const handleToggleItem = React.useCallback (
     (itemIndex:number) => {
-    dispatch({ type: 'ToggledItem', itemIndex: itemIndex})
-  }, [state.items])
+      dispatch({ type: 'ToggledItem', itemIndex: itemIndex})
+    }, [state.items])
+
+  React.useEffect(() => {
+    localStorage.setItem( LOCAL_STORAGE_KEY, JSON.stringify(state) )
+  }, [state])
   
   return (
     <div className='flex flex-col justify-items-center mx-auto w-96'>
