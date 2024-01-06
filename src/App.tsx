@@ -8,21 +8,26 @@ import {
 import axios from 'axios'
 import { produce } from 'immer'
 import * as R from 'ramda'
+import { z } from 'zod'
 
 const queryClient = new QueryClient()
 const LOCAL_STORAGE_KEY = 'react-shopping-list'
 
-interface ListItem {
-  label: string
-  isSelected: boolean
-  quantity: number
-}
+const listItemSchema = z.object({
+  label: z.string().min(1),
+  isSelected: z.boolean(),
+  quantity: z.number().min(1).positive()
+})
 
-interface ShoppingListState {
-  items: ListItem[]
-  resultsAreVisible: boolean
-  searchInput: string
-}
+type ListItem = z.infer<typeof listItemSchema>
+
+const shoppingListStateSchema = z.object({
+  items: z.array(listItemSchema),
+  resultsAreVisible: z.boolean(),
+  searchInput: z.string()
+})
+
+type ShoppingListState = z.infer<typeof shoppingListStateSchema>
 
 type ShoppingListAction =
   | { type: 'ChangeItemQuantity';
@@ -45,21 +50,18 @@ type ShoppingListAction =
 function shoppingListReducer(state:ShoppingListState, action:ShoppingListAction):ShoppingListState {
   switch (action.type) {
     case 'ChangeItemQuantity': {
-      const updatedState =
-        produce(state, draft => {
-          draft.items =
-            produce(state.items, (draft_) =>{
-              draft_.map((item) =>{
-                if (item.label === action.itemLabel) {
-                  item.quantity = item.quantity + action.change
-                } else {
-                  item
-                }
-              })
-            })
+      const updatedItems =
+        produce(state.items, draft =>{
+          draft.map((item) =>{
+            if (item.label === action.itemLabel) {
+              item.quantity = item.quantity + action.change
+            } else {
+              item
+            }
+          })
         })
       
-      return updatedState
+      return { ...state, items: updatedItems }
     }
 
     case 'DeletedItem': {
@@ -107,12 +109,14 @@ function App() {
       resultsAreVisible: false
     }
 
-  const savedStateString: string | null =
-    localStorage.getItem(LOCAL_STORAGE_KEY)
+  const savedStateString:unknown =
+    JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '')
+    
+  const parsedState = shoppingListStateSchema.safeParse(savedStateString)
   
-  const intialState:ShoppingListState = savedStateString == null
-    ? emptyState
-    : JSON.parse(savedStateString) // Adding Zod in the next iteration to enforce type safety from local storage
+  const intialState:ShoppingListState = parsedState.success
+    ? parsedState.data
+    : emptyState
   
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   
