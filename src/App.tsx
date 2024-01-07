@@ -369,6 +369,7 @@ function ShoppingList({handleDeleteItem, handleToggleItem, handleToggleNote, han
                         onChange={(e) => handleUpdateNoteText(itemIndex, e.target.value)}
                         className='textarea textarea-bordered h-24'
                         placeholder='Save details about the item here'
+                        value={listItem.notes.text}
                         ></textarea>
                     </label>
                     <div className='grid justify-items-end'>
