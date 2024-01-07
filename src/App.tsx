@@ -143,8 +143,10 @@ function App() {
       resultsAreVisible: false
     }
 
+  
+
   const savedStateString:unknown =
-    JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '')
+    JSON.parse(window.localStorage.getItem(LOCAL_STORAGE_KEY) || JSON.stringify(emptyState))
     
   const parsedState = shoppingListStateSchema.safeParse(savedStateString)
   
